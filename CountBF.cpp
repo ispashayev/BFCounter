@@ -33,6 +33,7 @@ struct CountBF_ProgramOptions {
   string output;
   bool verbose;
   bool quake;
+  bool use_qf;
   size_t bf;
   size_t qs;
   size_t threads;
@@ -40,7 +41,7 @@ struct CountBF_ProgramOptions {
   size_t read_chunksize;
   vector<string> files;
 
-  CountBF_ProgramOptions() : k(0), nkmers(0), verbose(false), quake(false), bf(4), qs(0), threads(1), seed(0), read_chunksize (10000) {}
+  CountBF_ProgramOptions() : k(0), nkmers(0), verbose(false), quake(false), use_qf(false), bf(4), qs(0), threads(1), seed(0), read_chunksize (10000) {}
 };
 
 void CountBF_PrintUsage() {
@@ -55,6 +56,7 @@ void CountBF_PrintUsage() {
     "-s, --seed=INT                  seed (32-bit int) for randomization" << endl <<
     "-o, --output=STRING             Filename for output" << endl <<
     "-b, --bloom-bits=INT            Number of bits to use in Bloom filter (default=4)" << endl <<
+    "    --use-quotient-filter       Use Quotient filter instead of Bloom filter (default=FALSE)" << endl <<
     "    --quake                     Count q-mers for use with Quake (default=FALSE)" << endl <<
     "    --quality-scale=INT         Quality-scale used in Quake mode, only 64 and 33 (default=64)" << endl <<
     "    --verbose                   Print lots of messages during run" << endl << endl
@@ -67,7 +69,8 @@ void CountBF_PrintUsage() {
 void CountBF_ParseOptions(int argc, char **argv, CountBF_ProgramOptions &opt) {
   int verbose_flag = 0;
   int quake_flag = 0;
-  const char* opt_string = "n:k:o:b:t:s:c:";
+  int use_qf_flag = 0;
+  const char* opt_string = "n:k:o:b:t:s:c:q:";
   static struct option long_options[] =
   {
     {"verbose", no_argument,  &verbose_flag, 1},
@@ -80,6 +83,7 @@ void CountBF_ParseOptions(int argc, char **argv, CountBF_ProgramOptions &opt) {
     {"bloom-bits", required_argument, 0, 'b'},
     {"quality-scale", required_argument, 0, 0},
     {"quake", no_argument, &quake_flag, 1},
+    {"use-quotient-filter", no_argument, &use_qf_flag, 1},
     {0,0,0,0}
   };
 
@@ -135,6 +139,9 @@ void CountBF_ParseOptions(int argc, char **argv, CountBF_ProgramOptions &opt) {
   }
   if (quake_flag) {
     opt.quake = true;
+  }
+  if (use_qf_flag) {
+    opt.use_qf = true;
   }
 }
 
