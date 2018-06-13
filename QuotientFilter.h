@@ -9,7 +9,8 @@ public:
    * Constructs a new Quotient Filter with the specified number of buckets,
    * using hash functions drawn from the indicated family of hash functions.
    */
-  QuotientFilter(size_t numBuckets, std::shared_ptr<HashFamily> family);
+  // QuotientFilter(size_t numBuckets, std::shared_ptr<HashFamily> family);
+  QuotientFilter(size_t num, size_t bits, uint32_t seed);
   
   /**
    * Cleans up all memory allocated by this filter.
@@ -17,45 +18,37 @@ public:
   ~QuotientFilter();
  
   /**
-   * Function given a fingerprint returns either the q
-   * or r value depending on the is_q value specified
+   * Returns the quotient of f (q most significant bits).
    */
-  int getqr(int f, bool is_q) const;
+  uint64_t QuotientFilter::getQuotient(uint64_t f) const;
+  
+  /**
+   * Returns the remainder of f (r least significant bits).
+   */
+  uint64_t QuotientFilter::getRemainder(uint64_t f) const;
 
   /**
    * Inserts the specified element into filter. If the element already
    * exists, this operation is a no-op.
    */
-  int insert(int data);
+  template<typename T> int insert(T data);
 
   /**
    * Function sets the three indicator bits for the given
    * index to the given value.
    */
-  void set_3_bit(size_t ind, bool occ, bool cont, bool shift);
+  void set_3_bit(uint64_t ind, bool occ, bool cont, bool shift);
   
   /**
    * Returns whether the specified key is contained in the filter.
    */
-  bool contains(int key) const;
-  
-  /**
-   * Removes the specified element from the filter. If the element is not
-   * present in the hash table, this operation is a no-op.
-   */
-  void remove(int key);
-  
-  /**
-   * Function perfroms a linear scan starting from the given bucket.
-   * The LinScan function is only used when the array is full.
-   */
-  bool linscan(int data, size_t bucket) const;  
-  
+  template<typename T> bool contains(T key) const;
+    
   /**
    * Function takes in a bucket index and
    * decrements it, accounting for wrap around.
    */
-  size_t decrement(size_t bucket) const;
+  uint64_t decrement(uint64_t bucket) const;
   
   
   /**
@@ -68,29 +61,22 @@ public:
    * Function increments the given bucket according to the
    * wrap around rule.
    */
-  size_t increment(size_t numBucks, size_t bucket) const;
-  
-  /**
-   * Function returns whether or not the given bucket
-   * is the beginning of a cluster.
-   */
-  bool isClusterStart(size_t bucket) const;
-  
+  uint64_t increment(uint64_t bucket) const;
+    
   /**
    * Finds the run for the given bucket.
    */
-  size_t find_run(size_t bucket) const;
+  uint64_t find_run(uint64_t bucket) const;
 
 private:
-  // Array of buckets containing data
-  std::vector<uint16_t>  buckets;
-  size_t numBucks;
-  size_t num_elems;
-  HashFunction fp;
-  int r;
-  int q;
+  uint32_t seed_;
+  uint64_t numBucks;
+  uint64_t num_elems;
+  std::vector<uint64_t> buckets; // Array of buckets containing data
+  int r, q; // number of remainder and quotient bits
+  // TODO: verify that vector<bool> is space-efficient!
   std::vector<bool> stat_arr; // Use Bool array cause it only stores one bit 
-  // Only caviate with bitsets is all of them 
+  
   QuotientFilter(QuotientFilter const &) = delete;
   void operator=(QuotientFilter const &) = delete;
 };
