@@ -23,6 +23,7 @@
 #include "KmerIterator.hpp"
 #include "BloomFilter.hpp"
 #include "bloom_filter.hpp"
+#include "QuotientFilter.hpp"
 
 #include "QLogTable.hpp"
 
@@ -631,6 +632,7 @@ void CountQF(const CountBF_ProgramOptions &opt) {
   hmapL_t kmap_Large;
     
   uint32_t seed = opt.seed;
+  size_t num_threads = 1;
   if (seed == 0) {
     seed = (uint32_t) time(NULL);
   }
@@ -650,7 +652,7 @@ void CountQF(const CountBF_ProgramOptions &opt) {
   // loops over all files
   FastqFile FQ(opt.files);
   string *readv = new string[read_chunksize];
-  vector<Kmer> *parray = new vector<Kmer>[num_threads];
+  vector<Kmer> *parray = new vector<Kmer>[num_threads]; // only 1 thread
   vector<Kmer> *smallv;
   size_t round = 0;
 
@@ -660,17 +662,18 @@ void CountQF(const CountBF_ProgramOptions &opt) {
     size_t reads_now = 0;
     while (reads_now < read_chunksize) {
       if (FQ.read_next(name, &name_len, s, &len, NULL, NULL) >= 0) {
-  readv[reads_now].assign(s);
-  ++n_read;
-  ++reads_now;
+        readv[reads_now].assign(s);
+        ++n_read;
+        ++reads_now;
       } else {
-  done = true;
-  break;
+        done = true;
+        break;
       }
     }
     ++round;
 
-#pragma omp parallel default(shared) private(smallv) shared(parray, readv, BF, reads_now) reduction(+: num_kmers, n_read)
+    /* TODO: what are these pragmas */
+#pragma omp parallel default(shared) private(smallv) shared(parray, readv, QF, reads_now) reduction(+: num_kmers, n_read)
     {
       KmerIterator iter, iterend;
       size_t threadnum = 0;
@@ -689,17 +692,12 @@ void CountQF(const CountBF_ProgramOptions &opt) {
     // for each valid k-mer in read
     ++num_kmers;
     Kmer rep = iter->first.rep();
-    size_t r = BF.search(rep);
-    if (r == 0) {
+    bool found = QF.contains(rep);
+    if (found) {
       // in bf
       smallv->push_back(rep);
     } else {
-      if (BF.insert(rep) == r) {
-        // inserted by us
-      } else {
-        // might have been inserted by other thread simultaneously
-        smallv->push_back(rep);
-      }
+      QF.insert(rep);
     }
   } // done with k-mers
       } // done with read
@@ -708,7 +706,7 @@ void CountQF(const CountBF_ProgramOptions &opt) {
     // this part is serial
     for (size_t i = 0; i < num_threads; i++) {
       for (vector<Kmer>::const_iterator it = parray[i].begin(); it != parray[i].end(); ++it) {
-  kmap.insert(KmerIntPair(*it,0)); // no extra effect if duplicated
+        kmap.insert(KmerIntPair(*it,0)); // no extra effect if duplicated
       }
       parray[i].clear();
     }
@@ -742,7 +740,7 @@ void CountQF(const CountBF_ProgramOptions &opt) {
     }
     ++round;
 
-#pragma omp parallel default(shared) private(smallv) shared(parray, readv, BF, reads_now) reduction(+: total_cov, n_read)
+#pragma omp parallel default(shared) private(smallv) shared(parray, readv, QF, reads_now) reduction(+: total_cov, n_read)
     {
       hmap_t::iterator it;
       KmerIterator iter, iterend;
