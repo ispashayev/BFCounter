@@ -21,10 +21,10 @@ public:
    */
   // QuotientFilter(size_t numBuckets, std::shared_ptr<HashFamily> family);
   QuotientFilter(size_t num, size_t bits, uint32_t seed)
-                                 : seed_(seed)
-                                 , q(NUM_QUOTIENT_BITS)
-                                 , r(NUM_REMAINDER_BITS) {
-    numBucks = num * bits; // TODO: verify that there are no overflow issues here
+                 : seed_(seed)
+                 , q(NUM_QUOTIENT_BITS)
+                 , r(NUM_REMAINDER_BITS) {
+    numBucks = rndup(num*bits); // TODO: verify that there are no overflow issues here
     std::vector<uint64_t> temp(numBucks, 0); // TODO: move to initialization list?
     buckets = temp;
     if (3*numBucks <= numBucks)
@@ -43,16 +43,14 @@ public:
    * Returns the quotient of f (q most significant bits).
    */
   uint64_t getQuotient(uint64_t f) const {
-    uint64_t quotient = f >> r;
-    return quotient;
+    return f >> r;
   }
   
   /**
    * Returns the remainder of f (r least significant bits).
    */
   uint64_t getRemainder(uint64_t f) const {
-    uint64_t remainder = (f << q) >> q; 
-    return remainder;
+    return (f << q) >> q; 
   }
   
   /**
@@ -105,7 +103,6 @@ public:
 
     uint64_t start = temp_bucket;
     while(temp_bucket != bucket) {
-
       do {
         start = increment(start);
       } while (stat_arr[start*3+1] == true);
@@ -113,7 +110,6 @@ public:
       do {
         temp_bucket = increment(temp_bucket);
       } while (!stat_arr[temp_bucket*3]);
-
     }
 
     return start;
@@ -125,7 +121,9 @@ public:
    */
   template<typename T>
   int insert(T data) {
-    uint64_t f; MurmurHash3_x64_64((const void*) &data, sizeof(int), seed_  , &f);
+    uint64_t f; MurmurHash3_x64_64((const void*) &data, sizeof(T), seed_, &f);
+
+    // cout << "inserting hash: " << f << endl;
     uint64_t q_int = getQuotient(f);
     uint64_t r_int = getRemainder(f);
     uint64_t bucket = q_int % numBucks;
@@ -190,7 +188,7 @@ public:
         last_cont = temp_cont;
       }
       run_start = increment(run_start);
-      if(stat_arr[run_start*3+1] == false)
+      if (stat_arr[run_start*3+1] == false)
         run_over = true;
     }
     
@@ -212,7 +210,7 @@ public:
    */
   template<typename T>
   bool contains(T key) {
-    uint64_t f; MurmurHash3_x64_64((const void*) &key, sizeof(T), seed_  , &f);
+    uint64_t f; MurmurHash3_x64_64((const void*) &key, sizeof(T), seed_, &f);
     uint64_t q_int = getQuotient(f);
     uint64_t r_int = getRemainder(f);
     uint64_t bucket = q_int % numBucks;
@@ -252,6 +250,10 @@ private:
   // TODO: verify that vector<bool> is space-efficient!
   std::vector<bool> stat_arr; // Use Bool array cause it only stores one bit 
   
+  uint64_t rndup(uint64_t x) const {
+    return ((x + 63) >> 6) << 6;
+  }
+
   QuotientFilter(QuotientFilter const &) = delete;
   void operator=(QuotientFilter const &) = delete;
 };
