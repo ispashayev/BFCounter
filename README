@@ -1,6 +1,6 @@
 Fork Note
 =========
-This repository is forked frompmelsted's original BFCounter repository. The
+This repository is forked from pmelsted's original BFCounter repository. The
 point of this fork is to explore the performance of the tool when using a
 Quotient Filter instead of a Bloom Filter for filtering unique k-mers. Initial
 results from a class project suggest that there could be a dramatic speed-up in
